@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Board } from "@/components/puzzle/Board";
-import { Chat } from "@/components/puzzle/Chat";
+import { ChatBubble } from "@/components/puzzle/ChatBubble";
 import { PlayersBar } from "@/components/puzzle/PlayersBar";
 import { createParticipantId } from "@/lib/id";
 import { pieceCount } from "@/lib/puzzle/difficulties";
@@ -66,7 +66,6 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
   const lastMoveSentRef = useRef(0);
 
   const totalPieces = pieceCount({ rows: room.grid_rows, cols: room.grid_cols });
-  const lockedCount = Object.values(pieces).filter((p) => p.locked).length;
 
   const {
     connected,
@@ -178,7 +177,7 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
 
   if (!ready) {
     return (
-      <main className="mx-auto flex max-w-md flex-col items-center gap-3 px-4 py-24 text-center">
+      <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-gradient-to-b from-violet-50 via-white to-white px-4 text-center dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950">
         <p className="text-neutral-500">Cargando partida…</p>
       </main>
     );
@@ -186,92 +185,89 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
 
   if (!name) {
     return (
-      <main className="mx-auto flex max-w-md flex-col gap-4 px-4 py-16">
-        <h1 className="text-2xl font-bold">Únete a la partida</h1>
-        <p className="text-neutral-600 dark:text-neutral-400">
-          {room.host_name} te invitó a armar un rompecabezas juntos.
-        </p>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const trimmed = nameDraft.trim().slice(0, 40);
-            if (!trimmed) return;
-            window.sessionStorage.setItem(storageKey(room.id, "name"), trimmed);
-            setIdentity((prev) => (prev ? { ...prev, name: trimmed } : prev));
-          }}
-          className="flex flex-col gap-3"
-        >
-          <input
-            autoFocus
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
-            maxLength={40}
-            placeholder="¿Cómo te llamas?"
-            className="rounded-xl border border-neutral-300 px-4 py-2.5 outline-none focus:border-violet-500 dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <button
-            type="submit"
-            className="rounded-xl bg-violet-600 px-4 py-2.5 font-semibold text-white hover:bg-violet-700"
+      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-violet-50 via-white to-white px-4 dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950">
+        <div className="w-full max-w-md rounded-2xl border border-neutral-200/70 bg-white/90 p-6 shadow-lg backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/90">
+          <span className="text-4xl">🧩</span>
+          <h1 className="mt-2 text-2xl font-bold">Únete a la partida</h1>
+          <p className="mt-1 text-neutral-600 dark:text-neutral-400">
+            {room.host_name} te invitó a armar un rompecabezas juntos.
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const trimmed = nameDraft.trim().slice(0, 40);
+              if (!trimmed) return;
+              window.sessionStorage.setItem(storageKey(room.id, "name"), trimmed);
+              setIdentity((prev) => (prev ? { ...prev, name: trimmed } : prev));
+            }}
+            className="mt-5 flex flex-col gap-3"
           >
-            Entrar
-          </button>
-        </form>
+            <input
+              autoFocus
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              maxLength={40}
+              placeholder="¿Cómo te llamas?"
+              className="rounded-xl border border-neutral-300 px-4 py-2.5 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/30 dark:border-neutral-700 dark:bg-neutral-950"
+            />
+            <button
+              type="submit"
+              className="rounded-xl bg-violet-600 px-4 py-2.5 font-semibold text-white transition hover:bg-violet-700 active:scale-95"
+            >
+              Entrar a jugar
+            </button>
+          </form>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
-      <PlayersBar participants={participants} shareUrl={shareUrl} />
+    <main className="min-h-screen bg-gradient-to-b from-violet-50 via-white to-white pb-4 dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950">
+      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-3 py-4 sm:gap-4 sm:px-4 sm:py-6">
+        <PlayersBar participants={participants} shareUrl={shareUrl} />
 
-      {!connected && (
-        <p className="text-sm text-amber-600 dark:text-amber-400">Conectando a la partida…</p>
-      )}
+        {!connected && (
+          <p className="text-sm text-amber-600 dark:text-amber-400">Conectando a la partida…</p>
+        )}
 
-      {connected && status === "waiting" && (
-        <p className="rounded-lg bg-neutral-100 px-4 py-2 text-sm dark:bg-neutral-900">
-          Esperando a que alguien mueva la primera pieza para empezar…
-        </p>
-      )}
-
-      {me?.role === "spectator" && (
-        <p className="rounded-lg bg-neutral-100 px-4 py-2 text-sm dark:bg-neutral-900">
-          Ya hay dos jugadores armando este rompecabezas — estás viendo como espectador, pero
-          puedes chatear.
-        </p>
-      )}
-
-      {status === "completed" && (
-        <p className="rounded-lg bg-green-50 px-4 py-3 text-center font-semibold text-green-700 dark:bg-green-950/40 dark:text-green-400">
-          🎉 ¡Rompecabezas completado! ({totalPieces} de {totalPieces} piezas)
-        </p>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-neutral-500">
-            {lockedCount} / {totalPieces} piezas colocadas
+        {connected && status === "waiting" && (
+          <p className="rounded-xl bg-neutral-100 px-4 py-2 text-sm dark:bg-neutral-900">
+            Esperando a que alguien mueva la primera pieza para empezar…
           </p>
-          <Board
-            imageUrl={room.image_url}
-            boardWidth={room.image_width}
-            boardHeight={room.image_height}
-            rows={room.grid_rows}
-            cols={room.grid_cols}
-            pieces={pieces}
-            heldBy={heldBy}
-            colorByParticipant={colorByParticipant}
-            interactive={me?.role === "player"}
-            onGrab={handleGrab}
-            onMove={handleMove}
-            onRelease={handleRelease}
-          />
-        </div>
+        )}
 
-        <div className="h-[70vh] lg:h-auto">
-          <Chat messages={messages} myName={name} onSend={sendChat} />
-        </div>
+        {me?.role === "spectator" && (
+          <p className="rounded-xl bg-neutral-100 px-4 py-2 text-sm dark:bg-neutral-900">
+            Ya hay dos jugadores armando este rompecabezas — estás viendo como espectador, pero
+            puedes chatear.
+          </p>
+        )}
+
+        {status === "completed" && (
+          <p className="rounded-xl bg-green-50 px-4 py-3 text-center font-semibold text-green-700 dark:bg-green-950/40 dark:text-green-400">
+            🎉 ¡Rompecabezas completado! ({totalPieces} de {totalPieces} piezas)
+          </p>
+        )}
+
+        <Board
+          seed={room.id}
+          imageUrl={room.image_url}
+          boardWidth={room.image_width}
+          boardHeight={room.image_height}
+          rows={room.grid_rows}
+          cols={room.grid_cols}
+          pieces={pieces}
+          heldBy={heldBy}
+          colorByParticipant={colorByParticipant}
+          interactive={me?.role === "player"}
+          onGrab={handleGrab}
+          onMove={handleMove}
+          onRelease={handleRelease}
+        />
       </div>
+
+      <ChatBubble messages={messages} myName={name} onSend={sendChat} />
     </main>
   );
 }

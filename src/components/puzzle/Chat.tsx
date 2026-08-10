@@ -7,9 +7,10 @@ type Props = {
   messages: ChatMessage[];
   myName: string;
   onSend: (content: string) => void;
+  onClose?: () => void;
 };
 
-export function Chat({ messages, myName, onSend }: Props) {
+export function Chat({ messages, myName, onSend, onClose }: Props) {
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -26,9 +27,19 @@ export function Chat({ messages, myName, onSend }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="border-b border-neutral-200 px-4 py-2.5 font-medium dark:border-neutral-800">
+    <div className="flex h-full flex-col bg-white dark:bg-neutral-900">
+      <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-2.5 font-medium dark:border-neutral-800">
         Chat
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar chat"
+            className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       <div ref={listRef} className="flex-1 space-y-2 overflow-y-auto px-4 py-3">

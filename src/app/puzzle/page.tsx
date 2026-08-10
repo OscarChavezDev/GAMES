@@ -39,7 +39,8 @@ export default function PuzzleSetupPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10 sm:py-16">
+    <main className="min-h-screen bg-gradient-to-b from-violet-50 via-white to-white dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950">
+    <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10 sm:py-16">
       <div>
         <Link href="/" className="text-sm text-violet-600 hover:underline dark:text-violet-400">
           ← Volver al inicio
@@ -179,6 +180,7 @@ export default function PuzzleSetupPage() {
           {isPending ? "Creando partida…" : "Crear partida"}
         </button>
       </form>
+    </div>
     </main>
   );
 }

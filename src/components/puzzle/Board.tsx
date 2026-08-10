@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { boardWithTrayHeight } from "@/lib/puzzle/shuffle";
+import { computeTrayLayout } from "@/lib/puzzle/shuffle";
+import { generateEdgeSigns, piecePathD, tabPadding } from "@/lib/puzzle/pieceShapes";
 import type { RoomPieceState } from "@/lib/puzzle/types";
+import { HintCard } from "./HintCard";
 import { PuzzlePiece } from "./PuzzlePiece";
 
 type Props = {
+  seed: string;
   imageUrl: string;
   boardWidth: number;
   boardHeight: number;
@@ -22,6 +25,7 @@ type Props = {
 };
 
 export function Board({
+  seed,
   imageUrl,
   boardWidth,
   boardHeight,
@@ -38,101 +42,141 @@ export function Board({
   const outerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
-  const totalHeight = boardWithTrayHeight(boardHeight);
-  const pieceWidth = boardWidth / cols;
-  const pieceHeight = boardHeight / rows;
+  const layout = useMemo(
+    () => computeTrayLayout(rows, cols, boardWidth, boardHeight),
+    [rows, cols, boardWidth, boardHeight]
+  );
+  const { pieceWidth, pieceHeight, totalHeight } = layout;
   const snapThreshold = Math.min(pieceWidth, pieceHeight) * 0.28;
+  const pad = tabPadding(pieceWidth, pieceHeight);
+
+  const pathByKey = useMemo(() => {
+    const edges = generateEdgeSigns(rows, cols, seed);
+    const map = new Map<string, string>();
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        map.set(`${r}-${c}`, piecePathD(pieceWidth, pieceHeight, pad, edges[r][c]));
+      }
+    }
+    return map;
+  }, [rows, cols, seed, pieceWidth, pieceHeight, pad]);
 
   useEffect(() => {
     const el = outerRef.current;
     if (!el) return;
 
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
+    // Fit BOTH dimensions, always — dragging a piece from the tray up onto
+    // the board is one continuous mouse/touch gesture, and the page never
+    // auto-scrolls mid-drag. If the tray falls outside the viewport, that
+    // gesture becomes physically impossible without releasing, scrolling,
+    // and re-grabbing. So the whole board+tray must fit on screen; pieces
+    // getting smaller on hard/tall puzzles is the acceptable tradeoff.
+    function recomputeScale() {
+      if (!el) return;
+      const width = el.getBoundingClientRect().width;
       if (!width) return;
-      const next = Math.min(1.3, Math.max(0.2, width / boardWidth));
-      setScale(next);
-    });
+      const availableHeight = window.innerHeight - el.getBoundingClientRect().top - 64;
+      const widthScale = width / boardWidth;
+      const heightScale = Math.max(availableHeight, 100) / totalHeight;
+      setScale(Math.min(1.3, Math.max(0.15, Math.min(widthScale, heightScale))));
+    }
+
+    const observer = new ResizeObserver(recomputeScale);
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [boardWidth]);
+    window.addEventListener("resize", recomputeScale);
+    recomputeScale();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", recomputeScale);
+    };
+  }, [boardWidth, totalHeight, pieceWidth, pieceHeight]);
 
   const minX = -pieceWidth * 0.4;
   const maxX = boardWidth - pieceWidth * 0.6;
   const minY = -pieceHeight * 0.4;
   const maxY = totalHeight - pieceHeight * 0.6;
 
+  const lockedCount = Object.values(pieces).filter((p) => p.locked).length;
+  const totalCount = rows * cols;
+
   return (
-    <div ref={outerRef} className="w-full overflow-x-auto">
-      <div style={{ width: boardWidth * scale, height: totalHeight * scale }} className="relative mx-auto">
-        <div
-          style={{
-            width: boardWidth,
-            height: totalHeight,
-            transform: `scale(${scale})`,
-            transformOrigin: "top left",
-            position: "absolute",
-            top: 0,
-            left: 0,
-          }}
-        >
-          {/* Ghost preview of the target image, so players can see where pieces go. */}
+    <>
+      <HintCard imageUrl={imageUrl} />
+      <div ref={outerRef} className="w-full overflow-x-auto">
+        <div style={{ width: boardWidth * scale, height: totalHeight * scale }} className="relative mx-auto">
           <div
-            className="rounded-lg border border-dashed border-neutral-400/70 dark:border-neutral-600/70"
             style={{
+              width: boardWidth,
+              height: totalHeight,
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
               position: "absolute",
               top: 0,
               left: 0,
-              width: boardWidth,
-              height: boardHeight,
-              backgroundImage: `url(${imageUrl})`,
-              backgroundSize: `${boardWidth}px ${boardHeight}px`,
-              opacity: 0.16,
-              pointerEvents: "none",
             }}
-          />
+          >
+            {/* One continuous work surface — the target outline is just a
+                faint guide, pieces are scattered loosely around/below it
+                rather than sorted into a separate tray. */}
+            <div
+              className="absolute inset-0 rounded-2xl border border-neutral-200 bg-white/60 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/40"
+              style={{ width: boardWidth, height: totalHeight, pointerEvents: "none" }}
+            />
+            <div
+              data-testid="solution-area"
+              className="rounded-xl border-2 border-dashed border-violet-300 dark:border-violet-800"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: boardWidth,
+                height: boardHeight,
+                backgroundImage:
+                  `repeating-linear-gradient(to right, rgba(124,58,237,0.14) 0 1px, transparent 1px ${pieceWidth}px), ` +
+                  `repeating-linear-gradient(to bottom, rgba(124,58,237,0.14) 0 1px, transparent 1px ${pieceHeight}px)`,
+                pointerEvents: "none",
+              }}
+            />
+            <div
+              className="pointer-events-none absolute inline-flex items-center gap-2 rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white shadow"
+              style={{ top: 10, left: 10, zIndex: 9999 }}
+            >
+              🧩 {lockedCount}/{totalCount} piezas
+            </div>
 
-          {/* Scatter tray area, below the board. */}
-          <div
-            className="rounded-lg border border-dashed border-neutral-300/70 dark:border-neutral-700/70"
-            style={{
-              position: "absolute",
-              top: boardHeight + 24,
-              left: 0,
-              width: boardWidth,
-              height: totalHeight - boardHeight - 24,
-              pointerEvents: "none",
-            }}
-          />
-
-          {Object.entries(pieces).map(([key, piece]) => {
-            const holder = heldBy[key];
-            return (
-              <PuzzlePiece
-                key={key}
-                pieceKey={key}
-                piece={piece}
-                pieceWidth={pieceWidth}
-                pieceHeight={pieceHeight}
-                boardWidth={boardWidth}
-                boardHeight={boardHeight}
-                imageUrl={imageUrl}
-                scale={scale}
-                minX={minX}
-                maxX={maxX}
-                minY={minY}
-                maxY={maxY}
-                snapThreshold={snapThreshold}
-                interactive={interactive}
-                heldByColor={holder ? (colorByParticipant[holder] ?? "#9ca3af") : null}
-                onGrab={onGrab}
-                onMove={onMove}
-                onRelease={onRelease}
-              />
-            );
-          })}
+            {Object.entries(pieces).map(([key, piece]) => {
+              const holder = heldBy[key];
+              const pathD = pathByKey.get(key);
+              if (!pathD) return null;
+              return (
+                <PuzzlePiece
+                  key={key}
+                  pieceKey={key}
+                  piece={piece}
+                  pathD={pathD}
+                  pieceWidth={pieceWidth}
+                  pieceHeight={pieceHeight}
+                  pad={pad}
+                  boardWidth={boardWidth}
+                  boardHeight={boardHeight}
+                  imageUrl={imageUrl}
+                  scale={scale}
+                  minX={minX}
+                  maxX={maxX}
+                  minY={minY}
+                  maxY={maxY}
+                  snapThreshold={snapThreshold}
+                  interactive={interactive}
+                  heldByColor={holder ? (colorByParticipant[holder] ?? "#9ca3af") : null}
+                  onGrab={onGrab}
+                  onMove={onMove}
+                  onRelease={onRelease}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -23,21 +23,23 @@ export function PlayersBar({ participants, shareUrl }: Props) {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-200/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/90">
+      <div className="flex flex-wrap items-center gap-2">
         {participants.length === 0 && (
           <span className="text-sm text-neutral-500">Conectando…</span>
         )}
         {participants.map((p) => (
           <span
             key={p.participantId}
-            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-sm dark:bg-neutral-800"
+            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 py-1 pl-1.5 pr-3 text-sm dark:bg-neutral-800"
           >
             <span
-              className="h-2.5 w-2.5 rounded-full"
+              className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-white"
               style={{ backgroundColor: p.color }}
               aria-hidden
-            />
+            >
+              {p.name.slice(0, 1).toUpperCase()}
+            </span>
             {p.name}
             {p.role === "spectator" && (
               <span className="text-xs text-neutral-500">(espectador)</span>
@@ -49,9 +51,9 @@ export function PlayersBar({ participants, shareUrl }: Props) {
       <button
         type="button"
         onClick={handleCopy}
-        className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-violet-700"
+        className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700 active:scale-95"
       >
-        {copied ? "¡Copiado!" : "Copiar link para invitar"}
+        {copied ? "¡Copiado! ✓" : "🔗 Invitar"}
       </button>
     </div>
   );
