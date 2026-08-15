@@ -94,18 +94,20 @@ export function Board({
 
     const observer = new ResizeObserver(recomputeScale);
     observer.observe(el);
-    // Also watch <body>: it's `el`'s own box that ResizeObserver reports
-    // on, but a sibling above the board (the Spotify "now playing" card,
-    // once its first fetch resolves and it renders content) shifts `el`
-    // *down* the page without changing `el`'s own width/height — which
-    // ResizeObserver wouldn't otherwise notice, leaving the scale computed
-    // against a stale, too-generous available-height reading.
-    observer.observe(document.body);
     window.addEventListener("resize", recomputeScale);
     recomputeScale();
+    // A sibling above the board (the Spotify "now playing" card, once its
+    // first fetch resolves) can shift `el` down the page without changing
+    // `el`'s own width/height, which ResizeObserver wouldn't notice on its
+    // own — a couple of delayed rechecks catch that settling. (Watching
+    // <body> directly was tried instead of this, but body's own size
+    // depends on this scaled canvas, so that fed back into itself and made
+    // the layout visibly creep/jitter.)
+    const settleTimers = [150, 500, 1200].map((delay) => setTimeout(recomputeScale, delay));
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", recomputeScale);
+      settleTimers.forEach(clearTimeout);
     };
   }, [canvasWidth, canvasHeight, pieceWidth, pieceHeight]);
 

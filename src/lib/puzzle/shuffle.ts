@@ -16,14 +16,8 @@ export type TrayLayout = {
   gap: number;
 };
 
-// Design-space budget for the tray's own width, independent of the board's.
-// Widening this trades a wider canvas for fewer tray rows. Since Board now
-// always fits both dimensions on screen (no scrolling to reach the tray),
-// fewer rows directly means a bigger scale fits — so this is the main lever
-// for keeping pieces a decent size at high piece counts, not just a
-// horizontal-space nicety.
-const MAX_TRAY_WIDTH = 900;
 const MIN_TRAY_COLS = 4;
+const MAX_TRAY_COLS = 26;
 
 /**
  * Single source of truth for where the "tray" (the shelf of unplaced
@@ -57,7 +51,18 @@ export function computeTrayLayout(
   const cellWidth = pieceWidth + pad * 1.3;
   const cellHeight = pieceHeight + pad * 1.3;
 
-  const trayCols = Math.max(MIN_TRAY_COLS, Math.floor(MAX_TRAY_WIDTH / cellWidth));
+  // Aim for a tray about as tall as the board itself, not a fixed pixel
+  // width — a flat width budget meant a 192-piece puzzle and a 16-piece one
+  // got the same column count, so the big one ended up with a tray many
+  // times taller than the board (and, since Board fits both dimensions on
+  // screen, a much smaller scale to compensate). Sizing columns off piece
+  // count keeps the tray roughly square-ish beside the board at any
+  // difficulty.
+  const targetTrayRows = Math.max(1, Math.round(boardHeight / cellHeight));
+  const trayCols = Math.min(
+    MAX_TRAY_COLS,
+    Math.max(MIN_TRAY_COLS, Math.ceil(totalPieces / targetTrayRows))
+  );
   const trayRows = Math.max(1, Math.ceil(totalPieces / trayCols));
   const trayWidth = trayCols * cellWidth;
   const trayHeight = trayRows * cellHeight;
