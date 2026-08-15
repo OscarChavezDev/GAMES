@@ -119,12 +119,12 @@ export function Board({
                 faint guide, pieces are scattered loosely around/below it
                 rather than sorted into a separate tray. */}
             <div
-              className="absolute inset-0 rounded-2xl border border-neutral-200 bg-white/60 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/40"
+              className="absolute inset-0 rounded-2xl border border-neutral-200 bg-white/60 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70"
               style={{ width: boardWidth, height: totalHeight, pointerEvents: "none" }}
             />
             <div
               data-testid="solution-area"
-              className="rounded-xl border-2 border-dashed border-violet-300 dark:border-violet-800"
+              className="rounded-xl border-2 border-dashed border-violet-300 bg-violet-50/50 dark:border-violet-500/70 dark:bg-violet-500/10"
               style={{
                 position: "absolute",
                 top: 0,
@@ -132,8 +132,8 @@ export function Board({
                 width: boardWidth,
                 height: boardHeight,
                 backgroundImage:
-                  `repeating-linear-gradient(to right, rgba(124,58,237,0.14) 0 1px, transparent 1px ${pieceWidth}px), ` +
-                  `repeating-linear-gradient(to bottom, rgba(124,58,237,0.14) 0 1px, transparent 1px ${pieceHeight}px)`,
+                  `repeating-linear-gradient(to right, var(--puzzle-grid-line) 0 1px, transparent 1px ${pieceWidth}px), ` +
+                  `repeating-linear-gradient(to bottom, var(--puzzle-grid-line) 0 1px, transparent 1px ${pieceHeight}px)`,
                 pointerEvents: "none",
               }}
             />

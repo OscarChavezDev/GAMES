@@ -8,6 +8,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Grid lines marking piece slots on the puzzle board — set as a variable
+     because the board draws them via an inline CSS gradient (the spacing
+     depends on piece size, computed at runtime), which can't reach a
+     `dark:` utility class directly. */
+  --puzzle-grid-line: rgba(124, 58, 237, 0.16);
 }
 
 @theme inline {
@@ -20,6 +25,7 @@
 .dark {
   --background: #0a0a0a;
   --foreground: #ededed;
+  --puzzle-grid-line: rgba(216, 180, 254, 0.28);
 }
 
 body {
