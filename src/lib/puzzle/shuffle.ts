@@ -17,9 +17,11 @@ export type TrayLayout = {
 };
 
 // Design-space budget for the tray's own width, independent of the board's.
-// Widening this trades a wider canvas for fewer tray rows — the board
-// sitting *beside* the tray (not above it) is what actually lets a high
-// piece count stay reachable without scrolling the board out of view too.
+// Widening this trades a wider canvas for fewer tray rows. Since Board now
+// always fits both dimensions on screen (no scrolling to reach the tray),
+// fewer rows directly means a bigger scale fits — so this is the main lever
+// for keeping pieces a decent size at high piece counts, not just a
+// horizontal-space nicety.
 const MAX_TRAY_WIDTH = 900;
 const MIN_TRAY_COLS = 4;
 

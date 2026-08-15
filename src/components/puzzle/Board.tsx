@@ -81,19 +81,15 @@ export function Board({
       const availableHeight = window.innerHeight - el.getBoundingClientRect().top - 64;
       const widthScale = width / canvasWidth;
       const heightScale = Math.max(availableHeight, 100) / canvasHeight;
-      // A floor just high enough to keep pieces grabbable, not "comfortable"
-      // — at 100+ pieces even a modest floor multiplies into a much taller
-      // tray, so this errs toward staying compact over staying big. Not
-      // capped by widthScale: on a narrow phone, board+tray side by side
-      // don't both fit at a legible size, and a horizontal scroll (same
-      // tradeoff already accepted for height on hard/tall puzzles) beats
-      // pieces too small to tap.
-      const minUsableScale = 42 / Math.min(pieceWidth, pieceHeight);
+      // Always fit both dimensions — no scrolling to reach the tray, full
+      // stop, even at 100+ pieces. That means pieces get smaller as piece
+      // count climbs; a 0.12 floor only guards against a degenerate
+      // near-zero scale, it's not a "stay legible" target anymore.
       const fitScale = Math.min(widthScale, heightScale);
       // Never upscale past the board's natural resolution — on a wide
       // screen that only blows up an already-large layout, it doesn't make
       // anything more usable.
-      setScale(Math.min(1, Math.max(0.15, Math.max(fitScale, minUsableScale))));
+      setScale(Math.min(1, Math.max(0.12, fitScale)));
     }
 
     const observer = new ResizeObserver(recomputeScale);
