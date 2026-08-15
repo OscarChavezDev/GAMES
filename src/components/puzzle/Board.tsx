@@ -86,10 +86,10 @@ export function Board({
       // count climbs; a 0.12 floor only guards against a degenerate
       // near-zero scale, it's not a "stay legible" target anymore.
       const fitScale = Math.min(widthScale, heightScale);
-      // Never upscale past the board's natural resolution — on a wide
-      // screen that only blows up an already-large layout, it doesn't make
-      // anything more usable.
-      setScale(Math.min(1, Math.max(0.12, fitScale)));
+      // Fill the available space — capped well above 1x so lower piece
+      // counts (which fit small even at full resolution) actually use a
+      // spacious screen instead of sitting tiny in a sea of empty margin.
+      setScale(Math.min(2.2, Math.max(0.12, fitScale)));
     }
 
     const observer = new ResizeObserver(recomputeScale);

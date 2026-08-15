@@ -229,7 +229,7 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-violet-50 via-white to-white pb-4 dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950">
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-3 py-4 sm:gap-4 sm:px-4 sm:py-6">
+      <div className="mx-auto flex max-w-[1800px] flex-col gap-3 px-3 py-4 sm:gap-4 sm:px-4 sm:py-6">
         <PlayersBar participants={participants} shareUrl={shareUrl} />
         <SpotifyWidget roomId={room.id} myName={name} />
 
