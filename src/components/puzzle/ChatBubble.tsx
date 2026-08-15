@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageCircle, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/lib/puzzle/types";
 import { Chat } from "./Chat";
@@ -66,11 +67,11 @@ export function ChatBubble({ messages, myName, onSend }: Props) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Cerrar chat" : "Abrir chat"}
-        className={`relative flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-lg transition hover:scale-105 hover:bg-violet-700 ${
+        className={`relative flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-white shadow-lg transition hover:scale-105 hover:bg-violet-700 ${
           !open && unread > 0 ? "animate-[pulse-ring_1.6s_ease-in-out_infinite]" : ""
         }`}
       >
-        {open ? "✕" : "💬"}
+        {open ? <X size={22} strokeWidth={1.75} /> : <MessageCircle size={22} strokeWidth={1.75} />}
         {!open && unread > 0 && (
           <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
             {unread}

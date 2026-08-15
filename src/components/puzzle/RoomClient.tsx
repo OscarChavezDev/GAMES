@@ -1,5 +1,7 @@
 "use client";
 
+import { PartyPopper, Puzzle } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Board } from "@/components/puzzle/Board";
@@ -187,8 +189,10 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-violet-50 via-white to-white px-4 dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950">
         <div className="w-full max-w-md rounded-2xl border border-neutral-200/70 bg-white/90 p-6 shadow-lg backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/90">
-          <span className="text-4xl">🧩</span>
-          <h1 className="mt-2 text-2xl font-bold">Únete a la partida</h1>
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400">
+            <Puzzle size={24} strokeWidth={1.75} />
+          </span>
+          <h1 className="mt-3 text-2xl font-bold">Únete a la partida</h1>
           <p className="mt-1 text-neutral-600 dark:text-neutral-400">
             {room.host_name} te invitó a armar un rompecabezas juntos.
           </p>
@@ -245,9 +249,18 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
         )}
 
         {status === "completed" && (
-          <p className="rounded-xl bg-green-50 px-4 py-3 text-center font-semibold text-green-700 dark:bg-green-950/40 dark:text-green-400">
-            🎉 ¡Rompecabezas completado! ({totalPieces} de {totalPieces} piezas)
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-green-50 px-4 py-3 dark:bg-green-950/40">
+            <p className="inline-flex items-center gap-2 font-semibold text-green-700 dark:text-green-400">
+              <PartyPopper size={18} strokeWidth={2} />
+              Rompecabezas completado — {totalPieces} de {totalPieces} piezas
+            </p>
+            <Link
+              href="/puzzle"
+              className="rounded-full bg-green-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-green-700 active:scale-95"
+            >
+              Crear otro rompecabezas
+            </Link>
+          </div>
         )}
 
         <Board

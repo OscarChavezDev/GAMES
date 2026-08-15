@@ -1,5 +1,6 @@
 "use client";
 
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
@@ -31,9 +32,9 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={mounted ? (isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro") : "Cambiar tema"}
-      className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white/90 text-lg shadow-sm backdrop-blur transition hover:scale-105 dark:border-neutral-700 dark:bg-neutral-900/90"
+      className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white/90 text-neutral-600 shadow-sm backdrop-blur transition hover:scale-105 hover:text-violet-600 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-300 dark:hover:text-violet-400"
     >
-      {mounted ? (isDark ? "☀️" : "🌙") : null}
+      {mounted ? isDark ? <Sun size={18} strokeWidth={1.75} /> : <Moon size={18} strokeWidth={1.75} /> : null}
     </button>
   );
 }

@@ -1,8 +1,11 @@
+import { tabPadding } from "./pieceShapes";
 import { pieceKey, type RoomPieceState } from "./types";
 
 export type TrayLayout = {
   pieceWidth: number;
   pieceHeight: number;
+  canvasWidth: number;
+  boardOffsetX: number;
   trayCols: number;
   trayRows: number;
   cellWidth: number;
@@ -13,6 +16,14 @@ export type TrayLayout = {
   gap: number;
 };
 
+// A narrow/portrait board (a tall custom image, or a high column count)
+// would otherwise force the tray into a tall, narrow, cramped column too —
+// this floor lets the tray spread wider than the board itself on anything
+// but a small screen. `Board`'s own width-fit scaling still shrinks the
+// whole thing proportionally on mobile, so this doesn't fight small
+// viewports, it just stops big ones from wasting horizontal space.
+const MIN_CANVAS_WIDTH = 900;
+
 /**
  * Single source of truth for where the "tray" (the shelf of unplaced
  * pieces below the board) sits and how big it is. Both the initial piece
@@ -20,9 +31,11 @@ export type TrayLayout = {
  * math call this, so they can never disagree about the coordinate space.
  *
  * Pieces are laid out in a snug grid rather than scattered across a large
- * empty area — that reads as an organized shelf instead of a mess, and
- * (importantly) keeps pieces from stacking on top of each other, which
- * made it hard to grab the one you actually meant to.
+ * empty area — that reads as an organized shelf instead of a mess. Cells
+ * are sized to clear each piece's tabs on every side (not just its base
+ * rectangle), so neighbors' tabs don't visually collide — the previous
+ * zero-gap grid looked fine at 16 pieces but turned into a solid jumble
+ * at 100+.
  */
 export function computeTrayLayout(
   rows: number,
@@ -33,16 +46,23 @@ export function computeTrayLayout(
   const pieceWidth = boardWidth / cols;
   const pieceHeight = boardHeight / rows;
   const totalPieces = rows * cols;
+  const pad = tabPadding(pieceWidth, pieceHeight);
 
-  // Match the board's own column count so the tray uses the full board
-  // width efficiently — with cols columns and totalPieces = rows*cols,
-  // this always works out to exactly `rows` tray rows, keeping the tray's
-  // height proportional to the board regardless of piece count.
-  const trayCols = cols;
+  const canvasWidth = Math.max(boardWidth, MIN_CANVAS_WIDTH);
+  const boardOffsetX = (canvasWidth - boardWidth) / 2;
+
+  // pad*1.3 clears most of each tab with a bit to spare, without reserving
+  // a full tab's width on *both* neighbors (which was overkill and, at low
+  // piece counts, left room for fewer columns than the board itself has).
+  const cellWidth = pieceWidth + pad * 1.3;
+  const cellHeight = pieceHeight + pad * 1.3;
+
+  // Never go narrower than the board's own column count — that's the
+  // proven-safe default. Only go *wider* than that, and only when the
+  // canvas has room to spare (a portrait/narrow board widened above),
+  // which is what actually needs the extra columns.
+  const trayCols = Math.max(cols, Math.floor(canvasWidth / cellWidth));
   const trayRows = Math.max(1, Math.ceil(totalPieces / trayCols));
-
-  const cellWidth = pieceWidth;
-  const cellHeight = pieceHeight * 1.15;
 
   const gap = Math.max(28, pieceHeight * 0.3);
   const trayTop = boardHeight + gap;
@@ -51,6 +71,8 @@ export function computeTrayLayout(
   return {
     pieceWidth,
     pieceHeight,
+    canvasWidth,
+    boardOffsetX,
     trayCols,
     trayRows,
     cellWidth,
@@ -98,8 +120,10 @@ export function generateInitialPieceState(
   }
 
   const order = shuffledIndices(cells.length);
-  const jitterX = layout.pieceWidth * 0.08;
-  const jitterY = layout.pieceHeight * 0.08;
+  // Jitter stays well inside each cell's own slack (the padding added for
+  // tabs) so it can't push a piece into its neighbor's territory.
+  const jitterX = Math.min(layout.pieceWidth * 0.08, (layout.cellWidth - layout.pieceWidth) * 0.3);
+  const jitterY = Math.min(layout.pieceHeight * 0.08, (layout.cellHeight - layout.pieceHeight) * 0.3);
 
   const state: RoomPieceState = {};
   order.forEach((cellIndex, slot) => {

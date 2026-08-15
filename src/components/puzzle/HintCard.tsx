@@ -1,5 +1,6 @@
 "use client";
 
+import { Image as ImageIcon, X } from "lucide-react";
 import { useState } from "react";
 
 export function HintCard({ imageUrl }: { imageUrl: string }) {
@@ -15,9 +16,9 @@ export function HintCard({ imageUrl }: { imageUrl: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Mostrar imagen de referencia"
-        className="fixed right-3 top-20 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-lg shadow-lg transition hover:scale-105 dark:border-neutral-700 dark:bg-neutral-900 sm:right-6"
+        className="fixed right-3 top-20 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-600 shadow-lg transition hover:scale-105 hover:text-violet-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:text-violet-400 sm:right-6"
       >
-        🖼️
+        <ImageIcon size={18} strokeWidth={1.75} />
       </button>
     );
   }
@@ -34,7 +35,7 @@ export function HintCard({ imageUrl }: { imageUrl: string }) {
           aria-label="Ocultar referencia"
           className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
         >
-          ✕
+          <X size={14} strokeWidth={2} />
         </button>
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}

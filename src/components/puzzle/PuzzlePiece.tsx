@@ -12,6 +12,7 @@ type Props = {
   pad: number;
   boardWidth: number;
   boardHeight: number;
+  boardOffsetX: number;
   imageUrl: string;
   scale: number;
   minX: number;
@@ -39,6 +40,7 @@ export function PuzzlePiece({
   pad,
   boardWidth,
   boardHeight,
+  boardOffsetX,
   imageUrl,
   scale,
   minX,
@@ -60,7 +62,7 @@ export function PuzzlePiece({
   const wasLockedRef = useRef(piece.locked);
 
   const blocked = !interactive || piece.locked || Boolean(heldByColor);
-  const targetX = piece.col * pieceWidth;
+  const targetX = piece.col * pieceWidth + boardOffsetX;
   const targetY = piece.row * pieceHeight;
 
   // A drag's visual position lives in local state so it renders instantly

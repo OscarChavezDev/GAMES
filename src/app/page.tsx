@@ -1,9 +1,10 @@
+import { Plus, Puzzle } from "lucide-react";
 import Link from "next/link";
 
 const GAMES = [
   {
     href: "/puzzle",
-    emoji: "🧩",
+    icon: Puzzle,
     title: "Rompecabezas",
     description:
       "Arma un rompecabezas en tiempo real con otra persona. Elige una imagen, comparte el link y jueguen juntos con chat incluido.",
@@ -25,9 +26,11 @@ export default function Home() {
           <Link
             key={game.href}
             href={game.href}
-            className="group flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-white p-6 transition hover:border-violet-400 hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900"
+            className="group flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-6 transition hover:border-violet-400 hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900"
           >
-            <span className="text-4xl">{game.emoji}</span>
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400">
+              <game.icon size={22} strokeWidth={1.75} />
+            </span>
             <h2 className="text-xl font-semibold group-hover:text-violet-600 dark:group-hover:text-violet-400">
               {game.title}
             </h2>
@@ -36,7 +39,7 @@ export default function Home() {
         ))}
 
         <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-neutral-300 p-6 text-center text-neutral-400 dark:border-neutral-700 dark:text-neutral-600">
-          <span className="text-4xl">➕</span>
+          <Plus size={28} strokeWidth={1.5} />
           <p className="text-sm">Más juegos próximamente</p>
         </div>
       </div>
