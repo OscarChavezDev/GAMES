@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import type { PieceState } from "@/lib/puzzle/types";
 
 type Props = {
@@ -14,6 +14,7 @@ type Props = {
   boardHeight: number;
   imageUrl: string;
   scale: number;
+  containerRef: RefObject<HTMLDivElement | null>;
   minX: number;
   maxX: number;
   minY: number;
@@ -41,6 +42,7 @@ export function PuzzlePiece({
   boardHeight,
   imageUrl,
   scale,
+  containerRef,
   minX,
   maxX,
   minY,
@@ -56,7 +58,15 @@ export function PuzzlePiece({
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const [nearTarget, setNearTarget] = useState(false);
   const [popping, setPopping] = useState(false);
-  const dragOrigin = useRef({ clientX: 0, clientY: 0, pieceX: 0, pieceY: 0 });
+  // Not a delta from a fixed starting point — an *offset* (where within the
+  // piece you grabbed it, in board-space). Every move re-measures the
+  // container's current on-screen box and re-derives the piece's position
+  // from that plus this offset, so the drag is immune to the container
+  // itself shifting mid-gesture (a banner above the board disappearing, a
+  // widget loading in, the fit-to-screen scale recomputing) — those used to
+  // make the piece jump, since accumulating a delta from a stale reference
+  // point silently bakes in whatever the container moved by too.
+  const grabOffset = useRef({ x: 0, y: 0 });
   const wasLockedRef = useRef(piece.locked);
 
   const blocked = !interactive || piece.locked || Boolean(heldByColor);
@@ -68,11 +78,11 @@ export function PuzzlePiece({
   // committed piece.x/y catches up to where we released, we hand rendering
   // back to the prop (e.g. so a later remote move of this piece is picked up).
   useEffect(() => {
-    if (dragPos && Math.abs(piece.x - dragPos.x) < 0.5 && Math.abs(piece.y - dragPos.y) < 0.5) {
+    if (!dragging && dragPos && Math.abs(piece.x - dragPos.x) < 0.5 && Math.abs(piece.y - dragPos.y) < 0.5) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDragPos(null);
     }
-  }, [piece.x, piece.y, dragPos]);
+  }, [piece.x, piece.y, dragPos, dragging]);
 
   useEffect(() => {
     const wasLocked = wasLockedRef.current;
@@ -84,25 +94,31 @@ export function PuzzlePiece({
     }
   }, [piece.locked]);
 
-  function computePos(e: ReactPointerEvent<SVGSVGElement>) {
-    const dx = (e.clientX - dragOrigin.current.clientX) / scale;
-    const dy = (e.clientY - dragOrigin.current.clientY) / scale;
+  function computePos(e: ReactPointerEvent<HTMLDivElement>) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: piece.x, y: piece.y };
+    const boardX = (e.clientX - rect.left) / scale;
+    const boardY = (e.clientY - rect.top) / scale;
     return {
-      x: clamp(dragOrigin.current.pieceX + dx, minX, maxX),
-      y: clamp(dragOrigin.current.pieceY + dy, minY, maxY),
+      x: clamp(boardX + grabOffset.current.x, minX, maxX),
+      y: clamp(boardY + grabOffset.current.y, minY, maxY),
     };
   }
 
-  function handlePointerDown(e: ReactPointerEvent<SVGSVGElement>) {
+  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     if (blocked) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const boardX = (e.clientX - rect.left) / scale;
+    const boardY = (e.clientY - rect.top) / scale;
+    grabOffset.current = { x: piece.x - boardX, y: piece.y - boardY };
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragOrigin.current = { clientX: e.clientX, clientY: e.clientY, pieceX: piece.x, pieceY: piece.y };
     setDragging(true);
     setDragPos({ x: piece.x, y: piece.y });
     onGrab(pieceKey);
   }
 
-  function handlePointerMove(e: ReactPointerEvent<SVGSVGElement>) {
+  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
     if (!dragging) return;
     const pos = computePos(e);
     setDragPos(pos);
@@ -110,7 +126,7 @@ export function PuzzlePiece({
     onMove(pieceKey, pos.x, pos.y);
   }
 
-  function handlePointerUp(e: ReactPointerEvent<SVGSVGElement>) {
+  function handlePointerUp(e: ReactPointerEvent<HTMLDivElement>) {
     if (!dragging) return;
     e.currentTarget.releasePointerCapture(e.pointerId);
     setDragging(false);
@@ -123,17 +139,21 @@ export function PuzzlePiece({
     onRelease(pieceKey, final.x, final.y, locked);
   }
 
-  const pos = dragPos ?? { x: piece.x, y: piece.y };
+  // Clamped even outside a drag: a piece's stored x/y can predate the
+  // current canvas (e.g. scattered under the beside-the-board tray
+  // arrangement, then viewed on a narrow screen using the below-the-board
+  // one) — clamping keeps it inside whatever canvas is actually showing
+  // instead of rendering off in space.
+  const pos = dragPos ?? { x: clamp(piece.x, minX, maxX), y: clamp(piece.y, minY, maxY) };
   const boxSize = { width: pieceWidth + pad * 2, height: pieceHeight + pad * 2 };
 
   const strokeColor = heldByColor ?? (nearTarget ? "#22c55e" : "rgba(255,255,255,0.9)");
   const strokeWidth = piece.locked ? 0 : nearTarget ? 3 : heldByColor ? 2.5 : 1.5;
 
   return (
-    <svg
-      width={boxSize.width}
-      height={boxSize.height}
-      viewBox={`0 0 ${boxSize.width} ${boxSize.height}`}
+    // The interactive, positioned element is a plain div; the svg inside it
+    // is purely visual and never itself positioned or measured.
+    <div
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -144,6 +164,8 @@ export function PuzzlePiece({
         position: "absolute",
         left: pos.x - pad,
         top: pos.y - pad,
+        width: boxSize.width,
+        height: boxSize.height,
         zIndex: piece.z,
         touchAction: "none",
         cursor: blocked ? (piece.locked ? "default" : "not-allowed") : dragging ? "grabbing" : "grab",
@@ -155,22 +177,24 @@ export function PuzzlePiece({
         transition: dragging ? "none" : "transform 200ms ease, filter 150ms ease",
       }}
     >
-      <defs>
-        <clipPath id={`clip-${pieceKey}`}>
-          <path d={pathD} />
-        </clipPath>
-      </defs>
-      <g clipPath={`url(#clip-${pieceKey})`}>
-        <image
-          href={imageUrl}
-          x={pad - piece.col * pieceWidth}
-          y={pad - piece.row * pieceHeight}
-          width={boardWidth}
-          height={boardHeight}
-          preserveAspectRatio="none"
-        />
-      </g>
-      <path d={pathD} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
-    </svg>
+      <svg width={boxSize.width} height={boxSize.height} viewBox={`0 0 ${boxSize.width} ${boxSize.height}`}>
+        <defs>
+          <clipPath id={`clip-${pieceKey}`}>
+            <path d={pathD} />
+          </clipPath>
+        </defs>
+        <g clipPath={`url(#clip-${pieceKey})`}>
+          <image
+            href={imageUrl}
+            x={pad - piece.col * pieceWidth}
+            y={pad - piece.row * pieceHeight}
+            width={boardWidth}
+            height={boardHeight}
+            preserveAspectRatio="none"
+          />
+        </g>
+        <path d={pathD} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
+      </svg>
+    </div>
   );
 }

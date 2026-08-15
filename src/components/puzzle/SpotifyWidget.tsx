@@ -72,13 +72,22 @@ export function SpotifyWidget({ roomId, myName }: Props) {
     await fetchNowPlaying();
   }
 
-  if (!state) return null;
+  // Renders a placeholder at the same height as the real states below
+  // rather than nothing — this widget sits above the board, and it going
+  // from zero height to its real height once the first fetch resolves
+  // pushed the whole board down mid-drag if that landed while someone was
+  // dragging a piece, making it look like the piece jumped.
+  if (!state) {
+    return (
+      <div className="h-[46px] animate-pulse rounded-2xl border border-neutral-200/70 bg-white/60 dark:border-neutral-800 dark:bg-neutral-900/60" />
+    );
+  }
 
   if (!state.connected) {
     return (
       <a
         href={`/api/spotify/connect?roomId=${encodeURIComponent(roomId)}&name=${encodeURIComponent(myName)}`}
-        className="flex items-center gap-2 rounded-2xl border border-neutral-200/70 bg-white/90 px-4 py-2.5 text-sm text-neutral-600 shadow-sm backdrop-blur transition hover:border-green-400 hover:text-green-700 dark:border-neutral-800 dark:bg-neutral-900/90 dark:text-neutral-400 dark:hover:text-green-400"
+        className="flex h-[46px] items-center gap-2 rounded-2xl border border-neutral-200/70 bg-white/90 px-4 text-sm text-neutral-600 shadow-sm backdrop-blur transition hover:border-green-400 hover:text-green-700 dark:border-neutral-800 dark:bg-neutral-900/90 dark:text-neutral-400 dark:hover:text-green-400"
       >
         <Music2 size={17} strokeWidth={1.75} />
         Conectar Spotify para compartir la música

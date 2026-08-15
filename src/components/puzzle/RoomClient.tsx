@@ -115,14 +115,12 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
       return { ...prev, [pieceKey]: { ...piece, z: nextZRef.current } };
     });
     broadcastGrab(pieceKey);
-
-    if (status === "waiting") {
-      setStatus("playing");
-      broadcastStatus("playing");
-      supabase.rpc("set_room_playing", { p_room_id: room.id }).then(({ error }) => {
-        if (error) console.error(error);
-      });
-    }
+    // The "waiting → playing" transition used to fire here, on grab — but
+    // that hides the "esperando..." banner immediately, and losing it
+    // shifts the board up *while the pointer is already captured for a
+    // drag*, throwing off the in-progress gesture (the piece would jump,
+    // since the mouse hadn't moved but the board had). Moved to release,
+    // after the gesture is done.
   }
 
   function handleMove(pieceKey: string, x: number, y: number) {
@@ -159,6 +157,12 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
         setStatus("completed");
         broadcastStatus("completed");
         supabase.rpc("complete_room", { p_room_id: room.id }).then(({ error }) => {
+          if (error) console.error(error);
+        });
+      } else if (status === "waiting") {
+        setStatus("playing");
+        broadcastStatus("playing");
+        supabase.rpc("set_room_playing", { p_room_id: room.id }).then(({ error }) => {
           if (error) console.error(error);
         });
       }
@@ -238,7 +242,14 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
         )}
 
         {connected && status === "waiting" && (
-          <p className="rounded-xl bg-neutral-100 px-4 py-2 text-sm dark:bg-neutral-900">
+          // Fixed/out-of-flow on purpose: this banner disappears the instant
+          // someone releases the first piece (status flips to "playing"),
+          // which is also the exact instant that piece's drag gesture ends.
+          // When this sat in normal flow, it disappearing shifted the whole
+          // board (and the piece the player had just placed) up by its own
+          // height — reliably reproducible, and exactly why dropping the
+          // very first piece of a room used to look like it "jumped".
+          <p className="pointer-events-none fixed left-1/2 top-4 z-30 -translate-x-1/2 rounded-full bg-neutral-900/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur dark:bg-neutral-100/90 dark:text-neutral-900">
             Esperando a que alguien mueva la primera pieza para empezar…
           </p>
         )}

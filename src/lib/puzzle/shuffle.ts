@@ -7,6 +7,7 @@ export type TrayLayout = {
   canvasWidth: number;
   canvasHeight: number;
   trayLeft: number;
+  trayTop: number;
   trayCols: number;
   trayRows: number;
   cellWidth: number;
@@ -14,6 +15,7 @@ export type TrayLayout = {
   trayWidth: number;
   trayHeight: number;
   gap: number;
+  vertical: boolean;
 };
 
 const MIN_TRAY_COLS = 4;
@@ -25,11 +27,17 @@ const MAX_TRAY_COLS = 26;
  * (server-side, at room creation) and the Board component's layout math
  * call this, so they can never disagree about the coordinate space.
  *
- * The tray sits to the *right* of the board, not below it: dragging a
- * piece from the tray onto the board is one continuous gesture, and stacking
- * them meant reaching a piece near the bottom of a long tray required
- * scrolling the board itself out of view first. Side by side, the board
- * stays put — only the tray's own height grows with piece count.
+ * `vertical` picks between the two arrangements: tray *beside* the board
+ * (targeting a tray about as tall as the board, growing wider with piece
+ * count) for wide/landscape viewports, or tray *below* the board (targeting
+ * a tray about as wide as the board, growing taller with piece count) for
+ * narrow/portrait ones. A single fixed arrangement can't serve both well —
+ * the beside-layout's canvas is inherently 2-3x wider than the board no
+ * matter the piece count, which is fine on a wide screen but forces a tiny
+ * scale on a narrow phone (leaving most of its height unused). Board decides
+ * which to use from its own viewport at render time; each piece's absolute
+ * x/y is still clamped into whichever canvas is currently showing, so a
+ * piece scattered under one arrangement never renders outside the other.
  *
  * Cells are sized to clear each piece's tabs on every side (not just its
  * base rectangle), so neighbors' tabs don't visually collide — a zero-gap
@@ -39,17 +47,58 @@ export function computeTrayLayout(
   rows: number,
   cols: number,
   boardWidth: number,
-  boardHeight: number
+  boardHeight: number,
+  vertical = false
 ): TrayLayout {
   const pieceWidth = boardWidth / cols;
   const pieceHeight = boardHeight / rows;
   const totalPieces = rows * cols;
   const pad = tabPadding(pieceWidth, pieceHeight);
 
-  // pad*1.3 clears most of each tab with a bit to spare, without reserving
-  // a full tab's width on *both* neighbors.
-  const cellWidth = pieceWidth + pad * 1.3;
-  const cellHeight = pieceHeight + pad * 1.3;
+  // pad*1.5 clears most of each tab with a bit to spare, without reserving
+  // a full tab's width on *both* neighbors. Each piece's own draggable div
+  // is pieceWidth+pad*2 wide (room for its own tabs on both sides), wider
+  // than one cell slot — some overlap between neighboring cells' hit areas
+  // is inherent to keeping the tray compact, but too little slack here made
+  // that overlap large enough to occasionally steal clicks/drags meant for
+  // the piece underneath, especially once pieces render small.
+  const cellWidth = pieceWidth + pad * 1.5;
+  const cellHeight = pieceHeight + pad * 1.5;
+  const gap = Math.max(28, Math.min(pieceWidth, pieceHeight) * 0.3);
+
+  if (vertical) {
+    // The tray below the board can be noticeably wider than the board
+    // itself (a phone is tall, not square) — capping it at exactly
+    // boardWidth forced too many rows at higher piece counts, ballooning
+    // canvasHeight and shrinking the fit-to-screen scale far more than the
+    // viewport's actual aspect ratio warranted.
+    const targetTrayCols = Math.max(1, Math.round((boardWidth * 1.7) / cellWidth));
+    const trayCols = Math.min(
+      MAX_TRAY_COLS,
+      Math.max(MIN_TRAY_COLS, targetTrayCols)
+    );
+    const trayRows = Math.max(1, Math.ceil(totalPieces / trayCols));
+    const trayWidth = trayCols * cellWidth;
+    const trayHeight = trayRows * cellHeight;
+    const trayTop = boardHeight + gap;
+
+    return {
+      pieceWidth,
+      pieceHeight,
+      canvasWidth: Math.max(boardWidth, trayWidth),
+      canvasHeight: trayTop + trayHeight,
+      trayLeft: 0,
+      trayTop,
+      trayCols,
+      trayRows,
+      cellWidth,
+      cellHeight,
+      trayWidth,
+      trayHeight,
+      gap,
+      vertical: true,
+    };
+  }
 
   // Aim for a tray about as tall as the board itself, not a fixed pixel
   // width — a flat width budget meant a 192-piece puzzle and a 16-piece one
@@ -66,8 +115,6 @@ export function computeTrayLayout(
   const trayRows = Math.max(1, Math.ceil(totalPieces / trayCols));
   const trayWidth = trayCols * cellWidth;
   const trayHeight = trayRows * cellHeight;
-
-  const gap = Math.max(28, Math.min(pieceWidth, pieceHeight) * 0.3);
   const trayLeft = boardWidth + gap;
 
   return {
@@ -76,6 +123,7 @@ export function computeTrayLayout(
     canvasWidth: trayLeft + trayWidth,
     canvasHeight: Math.max(boardHeight, trayHeight),
     trayLeft,
+    trayTop: 0,
     trayCols,
     trayRows,
     cellWidth,
@@ -83,6 +131,7 @@ export function computeTrayLayout(
     trayWidth,
     trayHeight,
     gap,
+    vertical: false,
   };
 }
 
@@ -134,13 +183,13 @@ export function generateInitialPieceState(
     const trayCol = slot % layout.trayCols;
 
     const baseX = layout.trayLeft + trayCol * layout.cellWidth + (layout.cellWidth - layout.pieceWidth) / 2;
-    const baseY = trayRow * layout.cellHeight + (layout.cellHeight - layout.pieceHeight) / 2;
+    const baseY = layout.trayTop + trayRow * layout.cellHeight + (layout.cellHeight - layout.pieceHeight) / 2;
 
     state[pieceKey(row, col)] = {
       row,
       col,
       x: Math.max(layout.trayLeft, baseX + (Math.random() * 2 - 1) * jitterX),
-      y: Math.max(0, baseY + (Math.random() * 2 - 1) * jitterY),
+      y: Math.max(layout.trayTop, baseY + (Math.random() * 2 - 1) * jitterY),
       locked: false,
       z: slot + 1,
     };

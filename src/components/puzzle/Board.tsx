@@ -41,13 +41,29 @@ export function Board({
   onRelease,
 }: Props) {
   const outerRef = useRef<HTMLDivElement>(null);
+  const transformRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [vertical, setVertical] = useState(false);
+
+  // Narrow/portrait viewports get the tray stacked below the board instead
+  // of beside it — the beside-arrangement's canvas is always 2-3x wider
+  // than the board (see computeTrayLayout), which is fine on a wide screen
+  // but forces a tiny scale on a phone, wasting most of its height. This is
+  // independent of the scale-fit effect below (a plain viewport-width media
+  // query, not a ResizeObserver), so it can't feed back into itself.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setVertical(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   const layout = useMemo(
-    () => computeTrayLayout(rows, cols, boardWidth, boardHeight),
-    [rows, cols, boardWidth, boardHeight]
+    () => computeTrayLayout(rows, cols, boardWidth, boardHeight, vertical),
+    [rows, cols, boardWidth, boardHeight, vertical]
   );
-  const { pieceWidth, pieceHeight, canvasWidth, canvasHeight, trayLeft } = layout;
+  const { pieceWidth, pieceHeight, canvasWidth, canvasHeight, trayLeft, trayTop } = layout;
   const snapThreshold = Math.min(pieceWidth, pieceHeight) * 0.28;
   const pad = tabPadding(pieceWidth, pieceHeight);
 
@@ -122,9 +138,10 @@ export function Board({
   return (
     <>
       <HintCard imageUrl={imageUrl} />
-      <div ref={outerRef} className="w-full overflow-x-auto">
+      <div ref={outerRef} className="w-full overflow-x-auto overflow-y-visible">
         <div style={{ width: canvasWidth * scale, height: canvasHeight * scale }} className="relative mx-auto">
           <div
+            ref={transformRef}
             style={{
               width: canvasWidth,
               height: canvasHeight,
@@ -166,10 +183,17 @@ export function Board({
             </div>
 
             {/* A thin divider marks where the piece tray starts. */}
-            <div
-              className="pointer-events-none absolute border-l border-dashed border-neutral-300 dark:border-neutral-700"
-              style={{ left: trayLeft - layout.gap / 2, top: 0, height: canvasHeight }}
-            />
+            {vertical ? (
+              <div
+                className="pointer-events-none absolute border-t border-dashed border-neutral-300 dark:border-neutral-700"
+                style={{ top: trayTop - layout.gap / 2, left: 0, width: canvasWidth }}
+              />
+            ) : (
+              <div
+                className="pointer-events-none absolute border-l border-dashed border-neutral-300 dark:border-neutral-700"
+                style={{ left: trayLeft - layout.gap / 2, top: 0, height: canvasHeight }}
+              />
+            )}
 
             {Object.entries(pieces).map(([key, piece]) => {
               const holder = heldBy[key];
@@ -188,6 +212,7 @@ export function Board({
                   boardHeight={boardHeight}
                   imageUrl={imageUrl}
                   scale={scale}
+                  containerRef={transformRef}
                   minX={minX}
                   maxX={maxX}
                   minY={minY}
