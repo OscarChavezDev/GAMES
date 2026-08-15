@@ -5,37 +5,39 @@ export type TrayLayout = {
   pieceWidth: number;
   pieceHeight: number;
   canvasWidth: number;
-  boardOffsetX: number;
+  canvasHeight: number;
+  trayLeft: number;
   trayCols: number;
   trayRows: number;
   cellWidth: number;
   cellHeight: number;
-  trayTop: number;
+  trayWidth: number;
   trayHeight: number;
-  totalHeight: number;
   gap: number;
 };
 
-// A narrow/portrait board (a tall custom image, or a high column count)
-// would otherwise force the tray into a tall, narrow, cramped column too —
-// this floor lets the tray spread wider than the board itself on anything
-// but a small screen. `Board`'s own width-fit scaling still shrinks the
-// whole thing proportionally on mobile, so this doesn't fight small
-// viewports, it just stops big ones from wasting horizontal space.
-const MIN_CANVAS_WIDTH = 900;
+// Design-space budget for the tray's own width, independent of the board's.
+// Widening this trades a wider canvas for fewer tray rows — the board
+// sitting *beside* the tray (not above it) is what actually lets a high
+// piece count stay reachable without scrolling the board out of view too.
+const MAX_TRAY_WIDTH = 900;
+const MIN_TRAY_COLS = 4;
 
 /**
  * Single source of truth for where the "tray" (the shelf of unplaced
- * pieces below the board) sits and how big it is. Both the initial piece
- * shuffle (server-side, at room creation) and the Board component's layout
- * math call this, so they can never disagree about the coordinate space.
+ * pieces) sits and how big it is. Both the initial piece shuffle
+ * (server-side, at room creation) and the Board component's layout math
+ * call this, so they can never disagree about the coordinate space.
  *
- * Pieces are laid out in a snug grid rather than scattered across a large
- * empty area — that reads as an organized shelf instead of a mess. Cells
- * are sized to clear each piece's tabs on every side (not just its base
- * rectangle), so neighbors' tabs don't visually collide — the previous
- * zero-gap grid looked fine at 16 pieces but turned into a solid jumble
- * at 100+.
+ * The tray sits to the *right* of the board, not below it: dragging a
+ * piece from the tray onto the board is one continuous gesture, and stacking
+ * them meant reaching a piece near the bottom of a long tray required
+ * scrolling the board itself out of view first. Side by side, the board
+ * stays put — only the tray's own height grows with piece count.
+ *
+ * Cells are sized to clear each piece's tabs on every side (not just its
+ * base rectangle), so neighbors' tabs don't visually collide — a zero-gap
+ * grid looked fine at 16 pieces but turned into a solid jumble at 100+.
  */
 export function computeTrayLayout(
   rows: number,
@@ -48,38 +50,31 @@ export function computeTrayLayout(
   const totalPieces = rows * cols;
   const pad = tabPadding(pieceWidth, pieceHeight);
 
-  const canvasWidth = Math.max(boardWidth, MIN_CANVAS_WIDTH);
-  const boardOffsetX = (canvasWidth - boardWidth) / 2;
-
   // pad*1.3 clears most of each tab with a bit to spare, without reserving
-  // a full tab's width on *both* neighbors (which was overkill and, at low
-  // piece counts, left room for fewer columns than the board itself has).
+  // a full tab's width on *both* neighbors.
   const cellWidth = pieceWidth + pad * 1.3;
   const cellHeight = pieceHeight + pad * 1.3;
 
-  // Never go narrower than the board's own column count — that's the
-  // proven-safe default. Only go *wider* than that, and only when the
-  // canvas has room to spare (a portrait/narrow board widened above),
-  // which is what actually needs the extra columns.
-  const trayCols = Math.max(cols, Math.floor(canvasWidth / cellWidth));
+  const trayCols = Math.max(MIN_TRAY_COLS, Math.floor(MAX_TRAY_WIDTH / cellWidth));
   const trayRows = Math.max(1, Math.ceil(totalPieces / trayCols));
+  const trayWidth = trayCols * cellWidth;
+  const trayHeight = trayRows * cellHeight;
 
-  const gap = Math.max(28, pieceHeight * 0.3);
-  const trayTop = boardHeight + gap;
-  const trayHeight = trayRows * cellHeight + gap;
+  const gap = Math.max(28, Math.min(pieceWidth, pieceHeight) * 0.3);
+  const trayLeft = boardWidth + gap;
 
   return {
     pieceWidth,
     pieceHeight,
-    canvasWidth,
-    boardOffsetX,
+    canvasWidth: trayLeft + trayWidth,
+    canvasHeight: Math.max(boardHeight, trayHeight),
+    trayLeft,
     trayCols,
     trayRows,
     cellWidth,
     cellHeight,
-    trayTop,
+    trayWidth,
     trayHeight,
-    totalHeight: trayTop + trayHeight,
     gap,
   };
 }
@@ -95,7 +90,7 @@ function shuffledIndices(count: number): number[] {
 
 /**
  * Builds the starting layout for every piece: laid out in shuffled order
- * across a tidy grid "tray" below the board, each cell nudged with a small
+ * across a tidy grid tray beside the board, each cell nudged with a small
  * random jitter so it still looks hand-scattered rather than robotic.
  * Coordinates are in the same natural image-pixel space as
  * `image_width`/`image_height`, so both players share one absolute frame
@@ -131,14 +126,14 @@ export function generateInitialPieceState(
     const trayRow = Math.floor(slot / layout.trayCols);
     const trayCol = slot % layout.trayCols;
 
-    const baseX = trayCol * layout.cellWidth + (layout.cellWidth - layout.pieceWidth) / 2;
-    const baseY = layout.trayTop + trayRow * layout.cellHeight + (layout.cellHeight - layout.pieceHeight) / 2;
+    const baseX = layout.trayLeft + trayCol * layout.cellWidth + (layout.cellWidth - layout.pieceWidth) / 2;
+    const baseY = trayRow * layout.cellHeight + (layout.cellHeight - layout.pieceHeight) / 2;
 
     state[pieceKey(row, col)] = {
       row,
       col,
-      x: Math.max(0, baseX + (Math.random() * 2 - 1) * jitterX),
-      y: Math.max(layout.trayTop, baseY + (Math.random() * 2 - 1) * jitterY),
+      x: Math.max(layout.trayLeft, baseX + (Math.random() * 2 - 1) * jitterX),
+      y: Math.max(0, baseY + (Math.random() * 2 - 1) * jitterY),
       locked: false,
       z: slot + 1,
     };

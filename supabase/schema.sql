@@ -141,3 +141,24 @@ create policy "puzzle images are publicly readable"
   on storage.objects for select
   to public
   using (bucket_id = 'puzzle-images');
+
+-- ============================================================================
+-- Spotify: one connection per room, so anyone in the room can see/control
+-- whichever participant linked their account. Tokens are only ever read or
+-- written server-side with the service role key (OAuth callback, and the
+-- now-playing / control route handlers) — there is deliberately no anon
+-- policy on this table, so it's unreachable from the browser even via a
+-- crafted request.
+-- ============================================================================
+
+create table if not exists spotify_connections (
+  room_id       text primary key references rooms(id) on delete cascade,
+  connected_by  text not null check (char_length(connected_by) between 1 and 40),
+  access_token  text not null,
+  refresh_token text not null,
+  expires_at    timestamptz not null,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+alter table spotify_connections enable row level security;

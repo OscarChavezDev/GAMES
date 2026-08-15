@@ -47,7 +47,7 @@ export function Board({
     () => computeTrayLayout(rows, cols, boardWidth, boardHeight),
     [rows, cols, boardWidth, boardHeight]
   );
-  const { pieceWidth, pieceHeight, totalHeight, canvasWidth, boardOffsetX } = layout;
+  const { pieceWidth, pieceHeight, canvasWidth, canvasHeight, trayLeft } = layout;
   const snapThreshold = Math.min(pieceWidth, pieceHeight) * 0.28;
   const pad = tabPadding(pieceWidth, pieceHeight);
 
@@ -66,40 +66,57 @@ export function Board({
     const el = outerRef.current;
     if (!el) return;
 
-    // Prefer fitting both dimensions — dragging a piece from the tray up
-    // onto the board is one continuous gesture, and the page never
-    // auto-scrolls mid-drag, so ideally the whole board+tray fits on
-    // screen. But that goal loses to pieces staying legible: at 100+
-    // pieces (Difícil/Experto), especially on a tall image, shrinking to
-    // fit height makes them illegibly small. Below that floor we accept
-    // a scroll to reach the tray — every real jigsaw site has the same
-    // tradeoff at high piece counts.
+    // Prefer fitting both dimensions — dragging a piece from the tray onto
+    // the board is one continuous gesture, and the page never auto-scrolls
+    // mid-drag, so ideally the whole board+tray fits on screen. That goal
+    // loses to pieces staying legible: at 100+ pieces, shrinking to fit
+    // height makes them illegibly small. Below that floor we accept a
+    // scroll to reach more of the tray — every real jigsaw site has the
+    // same tradeoff at high piece counts. The board sitting *beside* the
+    // tray (not above it) is what keeps it reachable even then.
     function recomputeScale() {
       if (!el) return;
       const width = el.getBoundingClientRect().width;
       if (!width) return;
       const availableHeight = window.innerHeight - el.getBoundingClientRect().top - 64;
       const widthScale = width / canvasWidth;
-      const heightScale = Math.max(availableHeight, 100) / totalHeight;
-      const minUsableScale = Math.min(widthScale, 56 / Math.min(pieceWidth, pieceHeight));
+      const heightScale = Math.max(availableHeight, 100) / canvasHeight;
+      // A floor just high enough to keep pieces grabbable, not "comfortable"
+      // — at 100+ pieces even a modest floor multiplies into a much taller
+      // tray, so this errs toward staying compact over staying big. Not
+      // capped by widthScale: on a narrow phone, board+tray side by side
+      // don't both fit at a legible size, and a horizontal scroll (same
+      // tradeoff already accepted for height on hard/tall puzzles) beats
+      // pieces too small to tap.
+      const minUsableScale = 42 / Math.min(pieceWidth, pieceHeight);
       const fitScale = Math.min(widthScale, heightScale);
-      setScale(Math.min(1.3, Math.max(0.15, Math.max(fitScale, minUsableScale))));
+      // Never upscale past the board's natural resolution — on a wide
+      // screen that only blows up an already-large layout, it doesn't make
+      // anything more usable.
+      setScale(Math.min(1, Math.max(0.15, Math.max(fitScale, minUsableScale))));
     }
 
     const observer = new ResizeObserver(recomputeScale);
     observer.observe(el);
+    // Also watch <body>: it's `el`'s own box that ResizeObserver reports
+    // on, but a sibling above the board (the Spotify "now playing" card,
+    // once its first fetch resolves and it renders content) shifts `el`
+    // *down* the page without changing `el`'s own width/height — which
+    // ResizeObserver wouldn't otherwise notice, leaving the scale computed
+    // against a stale, too-generous available-height reading.
+    observer.observe(document.body);
     window.addEventListener("resize", recomputeScale);
     recomputeScale();
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", recomputeScale);
     };
-  }, [canvasWidth, totalHeight, pieceWidth, pieceHeight]);
+  }, [canvasWidth, canvasHeight, pieceWidth, pieceHeight]);
 
   const minX = -pieceWidth * 0.4;
   const maxX = canvasWidth - pieceWidth * 0.6;
   const minY = -pieceHeight * 0.4;
-  const maxY = totalHeight - pieceHeight * 0.6;
+  const maxY = canvasHeight - pieceHeight * 0.6;
 
   const lockedCount = Object.values(pieces).filter((p) => p.locked).length;
   const totalCount = rows * cols;
@@ -108,11 +125,11 @@ export function Board({
     <>
       <HintCard imageUrl={imageUrl} />
       <div ref={outerRef} className="w-full overflow-x-auto">
-        <div style={{ width: canvasWidth * scale, height: totalHeight * scale }} className="relative mx-auto">
+        <div style={{ width: canvasWidth * scale, height: canvasHeight * scale }} className="relative mx-auto">
           <div
             style={{
               width: canvasWidth,
-              height: totalHeight,
+              height: canvasHeight,
               transform: `scale(${scale})`,
               transformOrigin: "top left",
               position: "absolute",
@@ -121,11 +138,11 @@ export function Board({
             }}
           >
             {/* One continuous work surface — the target outline is just a
-                faint guide, pieces are scattered loosely around/below it
-                rather than sorted into a separate tray. */}
+                faint guide, pieces are scattered loosely beside it rather
+                than sorted into a visually separate tray. */}
             <div
               className="absolute inset-0 rounded-2xl border border-neutral-200 bg-white/60 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70"
-              style={{ width: canvasWidth, height: totalHeight, pointerEvents: "none" }}
+              style={{ width: canvasWidth, height: canvasHeight, pointerEvents: "none" }}
             />
             <div
               data-testid="solution-area"
@@ -133,7 +150,7 @@ export function Board({
               style={{
                 position: "absolute",
                 top: 0,
-                left: boardOffsetX,
+                left: 0,
                 width: boardWidth,
                 height: boardHeight,
                 backgroundImage:
@@ -144,11 +161,17 @@ export function Board({
             />
             <div
               className="pointer-events-none absolute inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white shadow"
-              style={{ top: 10, left: boardOffsetX + 10, zIndex: 9999 }}
+              style={{ top: 10, left: 10, zIndex: 9999 }}
             >
               <Puzzle size={13} strokeWidth={2} />
               {lockedCount}/{totalCount} piezas
             </div>
+
+            {/* A thin divider marks where the piece tray starts. */}
+            <div
+              className="pointer-events-none absolute border-l border-dashed border-neutral-300 dark:border-neutral-700"
+              style={{ left: trayLeft - layout.gap / 2, top: 0, height: canvasHeight }}
+            />
 
             {Object.entries(pieces).map(([key, piece]) => {
               const holder = heldBy[key];
@@ -165,7 +188,6 @@ export function Board({
                   pad={pad}
                   boardWidth={boardWidth}
                   boardHeight={boardHeight}
-                  boardOffsetX={boardOffsetX}
                   imageUrl={imageUrl}
                   scale={scale}
                   minX={minX}

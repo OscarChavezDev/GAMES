@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Board } from "@/components/puzzle/Board";
 import { ChatBubble } from "@/components/puzzle/ChatBubble";
 import { PlayersBar } from "@/components/puzzle/PlayersBar";
+import { SpotifyWidget } from "@/components/puzzle/SpotifyWidget";
 import { createParticipantId } from "@/lib/id";
 import { pieceCount } from "@/lib/puzzle/difficulties";
 import { useRoomChannel } from "@/lib/puzzle/useRoomChannel";
@@ -230,6 +231,7 @@ export default function RoomClient({ room, initialMessages, hostNameFromQuery }:
     <main className="min-h-screen bg-gradient-to-b from-violet-50 via-white to-white pb-4 dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-950">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-3 py-4 sm:gap-4 sm:px-4 sm:py-6">
         <PlayersBar participants={participants} shareUrl={shareUrl} />
+        <SpotifyWidget roomId={room.id} myName={name} />
 
         {!connected && (
           <p className="text-sm text-amber-600 dark:text-amber-400">Conectando a la partida…</p>
